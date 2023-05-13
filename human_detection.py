@@ -1,5 +1,3 @@
-import logging
-
 from ultralytics import YOLO
 
 import cv2
@@ -10,7 +8,7 @@ import os
 def detect_class_inside_dataset(source_path: str, dest_path: str, original_index: int, final_index: int):
     """
     Detecta uma classe específica num conjunto de imagens definidas em source_path, salvando suas labels referentes
-    em dest_path, as labels terão o mesmo nome que as imagens. (Evita detectar imagens que já possuem lables em
+    em dest_path, as labels terão o mesmo nome que as imagens. (Evita detectar imagens que já possuem labels em
     dest_path). Suporta imagens em jpg, jpeg e png.
 
     :param source_path: Path de origem das imagens.
@@ -55,4 +53,4 @@ def detect_class_inside_dataset(source_path: str, dest_path: str, original_index
         print(f"Imagem {image_path}: Label salva!")
 
 
-detect_class_inside_dataset("C:/yolov8_csis/test_dir", "C:/yolov8_csis/predicted_labels", 0, 8)
+detect_class_inside_dataset("C:/yolov8_csis/images", "C:/yolov8_csis/predicted_labels", 0, 8)
