@@ -66,18 +66,33 @@ def merge_yolo_files(source_path: str, dest_path: str):
     os.chdir(source_path)
     for file_path in glob.glob("*.txt"):
         with open(file_path, "r") as source_file:
-            content = source_file.read()
-        with open(dest_path + file_path, "a+") as dest_file:
-            if content:
-                dest_file.write(f"\n{content}")
-    print("Opeação concluida!")
+            content = source_file.read().strip("\n")
+        with open(dest_path + file_path, "r") as dest_file:
+            content_dest = dest_file.read().strip("\n")
+        with open(dest_path + file_path, "w") as dest_file:
+            dest_file.write(f"{content_dest}\n{content}".strip("\n"))
+    print("Operação concluida!")
 
 
-"""print_infos(
+def split_dataset(source_path: str, train: float, test: float, validation: float):
+    """
+    Divide o dataset em treino, teste e validação conforme proporção inserida. Realiza estratificação das classes
+    mantendo proporcionalidade nas divisões.
+
+    :param source_path:
+    :param train:
+    :param test:
+    :param validation:
+    :return:
+    """
+
+
+print_infos(
     count_yolo_classes(
         ["spray", "graffiti", "gun", "fire", "smoke", "knife", "puddle", "mud", "person"],
-        "C:/yolov8_csis/predicted_labels",
+        "C:/yolov8_csis/labels_dest",
     )
-)"""
+)
 
-merge_yolo_files("C:/yolov8_csis/fake_origin", "C:/yolov8_csis/fake_dest")
+# merge_yolo_files("C:/yolov8_csis/labels_origin", "C:/yolov8_csis/labels_dest")
+
