@@ -1,5 +1,7 @@
 import glob, os
+import random
 from copy import copy
+from math import floor, ceil
 from typing import List
 
 
@@ -74,25 +76,73 @@ def merge_yolo_files(source_path: str, dest_path: str):
     print("Operação concluida!")
 
 
-def split_dataset(source_path: str, train: float, test: float, validation: float):
+def split_dataset(source_path: str, class_list: list[str], train: float, test: float, validation: float):
     """
-    Divide o dataset em treino, teste e validação conforme proporção inserida. Realiza estratificação das classes
-    mantendo proporcionalidade nas divisões.
+    Divide o dataset em treino, teste e validação conforme proporção inserida. Realiza certa estratificação do dataset
+    tentando manter uma divisão mais proporcional. Cria as pastas train, test e validation contendo as labels e imagens
+    referentes. Começa a divisão por labels de menor ocorrência para maior.
 
-    :param source_path:
-    :param train:
-    :param test:
-    :param validation:
-    :return:
+    :param source_path: Path contendo imagens e labels.
+    :param class_list: Lista de classes do dataset obedecendo a ordem das classes (ex: ["apple", "pie"])
+    :param train: Porcentagem de treino (ex: 0.8)
+    :param test: Porcentagem de teste (ex: 0.1)
+    :param validation: Porcentagem de validação (ex: 0.1)
     """
+    if train == 0 and test == 0:
+        raise ValueError
+
+    count_dict = count_yolo_classes(class_list, source_path)
+    moved_files, train_files, test_files, validation_files = set(), set(), set(), set()
+
+    classes = [count_dict[key] for key in count_dict if isinstance(count_dict.get(key), dict)]
+    classes.sort(key=lambda i: i["count"])
+    for info in classes:
+        images = info["images"] - moved_files
+        moved_files.update(images)
+
+        train_images = set(random.sample(list(images), ceil(len(images) * train)))
+        images = images - train_images
+
+        test_images = set(random.sample(list(images), ceil(len(images) * (test/(test+validation)))))
+        images = images - test_images
+
+        validation_images = images
+
+        train_files.update(train_images)
+        test_files.update(test_images)
+        validation_files.update(validation_images)
+
+    all_txt = [os.path.basename(file) for file in glob.glob("*.txt")]
+    all_txt = set(all_txt)
+    remaining_files = all_txt - moved_files
+    train_images = set(random.sample(list(remaining_files), ceil(len(remaining_files) * train)))
+    remaining_files = remaining_files - train_images
+
+    test_images = set(random.sample(list(remaining_files), ceil(len(remaining_files) * (test / (test + validation)))))
+    remaining_files = remaining_files - test_images
+
+    validation_images = remaining_files
+    train_files.update(train_images)
+    test_files.update(test_images)
+    validation_files.update(validation_images)
+
+    print("Complete")
 
 
-print_infos(
+
+"""print_infos(
     count_yolo_classes(
         ["spray", "graffiti", "gun", "fire", "smoke", "knife", "puddle", "mud", "person"],
         "C:/yolov8_csis/labels_dest",
     )
-)
+)"""
 
 # merge_yolo_files("C:/yolov8_csis/labels_origin", "C:/yolov8_csis/labels_dest")
 
+split_dataset(
+    "C:/yolov8_csis/labels_dest",
+    ["spray", "graffiti", "gun", "fire", "smoke", "knife", "puddle", "mud", "person"],
+    0.8,
+    0.1,
+    0.1,
+)
