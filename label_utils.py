@@ -103,7 +103,7 @@ def split_dataset(source_path: str, class_list: list[str], train: float, test: f
         train_images = set(random.sample(list(images), ceil(len(images) * train)))
         images = images - train_images
 
-        test_images = set(random.sample(list(images), ceil(len(images) * (test/(test+validation)))))
+        test_images = set(random.sample(list(images), ceil(len(images) * (test / (test + validation)))))
         images = images - test_images
 
         validation_images = images
@@ -126,8 +126,34 @@ def split_dataset(source_path: str, class_list: list[str], train: float, test: f
     test_files.update(test_images)
     validation_files.update(validation_images)
 
-    print("Complete")
+    source_path = source_path + "/" if source_path[-1] != "/" else source_path
+    labels_train_path = source_path + "labels/train"
+    labels_test_path = source_path + "labels/test"
+    labels_validation_path = source_path + "labels/val"
 
+    images_train_path = source_path + "images/train"
+    images_test_path = source_path + "images/test"
+    images_validation_path = source_path + "images/val"
+
+    labels_path = source_path + "labels"
+    images_path = source_path + "images"
+
+    paths_list = [
+        labels_path,
+        images_path,
+        labels_train_path,
+        labels_test_path,
+        labels_validation_path,
+        images_train_path,
+        images_test_path,
+        images_validation_path,
+    ]
+
+    for path in paths_list:
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            continue
 
 
 """print_infos(
