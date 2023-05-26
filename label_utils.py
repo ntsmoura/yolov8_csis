@@ -1,5 +1,6 @@
 import glob, os
 import random
+import shutil
 from copy import copy
 from math import floor, ceil
 from typing import List
@@ -127,16 +128,16 @@ def split_dataset(source_path: str, class_list: list[str], train: float, test: f
     validation_files.update(validation_images)
 
     source_path = source_path + "/" if source_path[-1] != "/" else source_path
-    labels_train_path = source_path + "labels/train"
-    labels_test_path = source_path + "labels/test"
-    labels_validation_path = source_path + "labels/val"
+    labels_train_path = source_path + "labels/train/"
+    labels_test_path = source_path + "labels/test/"
+    labels_validation_path = source_path + "labels/val/"
 
-    images_train_path = source_path + "images/train"
-    images_test_path = source_path + "images/test"
-    images_validation_path = source_path + "images/val"
+    images_train_path = source_path + "images/train/"
+    images_test_path = source_path + "images/test/"
+    images_validation_path = source_path + "images/val/"
 
-    labels_path = source_path + "labels"
-    images_path = source_path + "images"
+    labels_path = source_path + "labels/"
+    images_path = source_path + "images/"
 
     paths_list = [
         labels_path,
@@ -154,6 +155,31 @@ def split_dataset(source_path: str, class_list: list[str], train: float, test: f
             os.mkdir(path)
         except FileExistsError:
             continue
+
+    images_list = [os.path.basename(file) for file in glob.glob("*.jpeg") + glob.glob("*.jpg") + glob.glob("*.png")]
+
+    for validation_file in validation_files:
+        shutil.move(source_path + validation_file, labels_validation_path + validation_file)
+        for image_name in images_list:
+            if validation_file.split(".txt")[0] == image_name.replace(".jpg", "").replace(".png", "").replace(
+                ".jpeg", ""
+            ):
+                shutil.move(source_path + image_name, images_validation_path + image_name)
+                break
+
+    for test_file in test_files:
+        shutil.move(source_path + test_file, labels_test_path + test_file)
+        for image_name in images_list:
+            if test_file.split(".txt")[0] == image_name.replace(".jpg", "").replace(".png", "").replace(".jpeg", ""):
+                shutil.move(source_path + image_name, images_test_path + image_name)
+                break
+
+    for train_file in train_files:
+        shutil.move(source_path + train_file, labels_train_path + train_file)
+        for image_name in images_list:
+            if train_file.split(".txt")[0] == image_name.replace(".jpg", "").replace(".png", "").replace(".jpeg", ""):
+                shutil.move(source_path + image_name, images_train_path + image_name)
+                break
 
 
 """print_infos(
