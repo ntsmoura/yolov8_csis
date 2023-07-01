@@ -5,25 +5,9 @@ description = ""
 authors = ["Formas"]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
+python = ">=3.10"
 python-multipart = "*"
 numpy = "*"
 fastapi = "*"
 uvicorn = "*"
 asyncio = "*"
-ultralytics = "*"
-
-exclude = '''
-(
-      __pycache__
-    | \btutorials\b
-    | \bbuild\b
-    | \.git
-    | \.mypy_cache
-    | \.pytest_cache
-    | \.vscode
-    | \.venv
-    | \bdist\b
-    | \bdoc\b
-)
-'''

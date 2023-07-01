@@ -10,7 +10,7 @@ import cv2
 
 app = FastAPI()
 
-model = YOLO("best_public_safety_10.pt")
+model = YOLO("models/best_public_safety_30.pt")
 
 
 @app.get("/health_check")
