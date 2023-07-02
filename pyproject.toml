@@ -11,3 +11,6 @@ numpy = "*"
 fastapi = "*"
 uvicorn = "*"
 asyncio = "*"
+
+[tool.poetry.dev-dependencies]
+ultralytics = "*"
