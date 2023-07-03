@@ -1,4 +1,6 @@
 import datetime
+import logging
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -33,6 +35,9 @@ firebase_admin.initialize_app(cred)
 db = firestore_async.client()
 
 predictions = db.collection("predictions")
+
+if not os.path.exists("./received_images"):
+    os.makedirs("./received_images")
 
 
 @app.get("/health_check")
@@ -75,6 +80,7 @@ async def report(status: str, predict_id: str):
         )
     match status:
         case "correct":
+            os.remove(f"./received_images/{predict_id}.png")
             await pred_ref.update({"feedback": "CORRECT", "last_update": datetime.datetime.now()})
         case "wrong":
             await pred_ref.update({"feedback": "WRONG", "last_update": datetime.datetime.now()})
@@ -96,9 +102,9 @@ async def predict(image: Annotated[UploadFile, Form()], return_type: str):
         img_bytes = await image.read()
         raw_img = np.asarray(bytearray(img_bytes), dtype="uint8")
         raw_img = cv2.imdecode(raw_img, cv2.IMREAD_COLOR)
+        cv2.imwrite(f"./received_images/{prediction_ref.id}.png", raw_img)
 
         result = model.predict(source=raw_img, device="cpu")
-        cv2.imwrite("result.png", result[0].plot())
         if return_type == "json":
             names = result[0].names
             classes = result[0].boxes.cls
@@ -119,7 +125,8 @@ async def predict(image: Annotated[UploadFile, Form()], return_type: str):
             return Response(
                 content=result_img[1].tobytes(), media_type="image/png", headers={"doc_id": prediction_ref.id}
             )
-    except Exception:
+    except Exception as error:
+        logging.error(error)
         await prediction_ref.update({"status": "ERROR"})
         return JSONResponse(status_code=500, content={"message": "Erro desconhecido"})
     else:
