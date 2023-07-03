@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -13,6 +14,7 @@ import cv2
 import firebase_admin
 from firebase_admin import credentials, firestore_async
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 app = FastAPI()
 
@@ -30,6 +32,8 @@ firebase_admin.initialize_app(cred)
 
 db = firestore_async.client()
 
+predictions = db.collection("predictions")
+
 
 @app.get("/health_check")
 async def health_check():
@@ -39,31 +43,87 @@ async def health_check():
     return JSONResponse(content="API e Modelo funcionando como esperado...")
 
 
+@app.get("/metrics")
+async def metrics():
+    correct_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "CORRECT")).count().get())[0][0].value
+    wrong_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "WRONG")).count().get())[0][0].value
+    pending_feedbacks = (await predictions.where(filter=FieldFilter("feedback", "==", "PENDING")).count().get())[0][
+        0
+    ].value
+    division = None
+    if correct_preds or wrong_preds:
+        division = correct_preds / (correct_preds + wrong_preds)
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "predicoes_corretas": correct_preds,
+            "predicoes_erradas": wrong_preds,
+            "predicos_sem_feedback": pending_feedbacks,
+            "razao": division,
+        },
+    )
+
+
+@app.post("/{predict_id}/report")
+async def report(status: str, predict_id: str):
+    pred_ref = predictions.document(predict_id)
+    if not (await pred_ref.get()).exists:
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Predição não encontrada."},
+        )
+    match status:
+        case "correct":
+            await pred_ref.update({"feedback": "CORRECT", "last_update": datetime.datetime.now()})
+        case "wrong":
+            await pred_ref.update({"feedback": "WRONG", "last_update": datetime.datetime.now()})
+        case _:
+            return JSONResponse(
+                status_code=400,
+                content={"message": "Tipo de report não suportado"},
+            )
+    return JSONResponse(status_code=200, content={"message": "Feedback recebido."})
+
+
 @app.post("/predict/{return_type}")
 async def predict(image: Annotated[UploadFile, Form()], return_type: str):
-    img_bytes = await image.read()
-    raw_img = np.asarray(bytearray(img_bytes), dtype="uint8")
-    raw_img = cv2.imdecode(raw_img, cv2.IMREAD_COLOR)
 
-    result = model.predict(source=raw_img, device="cpu")
-    cv2.imwrite("result.png", result[0].plot())
-    if return_type == "json":
-        names = result[0].names
-        classes = result[0].boxes.cls
-        confs = result[0].boxes.conf
-        results = {}
-        if classes is not None:
-            for i in range(len(classes)):
-                label = names[int(classes[i])]
-                if label not in results:
-                    results[label] = [float(confs[i])]
-                else:
-                    results[label].append(float(confs[i]))
-        return JSONResponse(content=results)
-    elif return_type == "img":
-        result_img = cv2.imencode(".png", result[0].plot())
-        return Response(content=result_img[1].tobytes(), media_type="image/png")
+    _, prediction_ref = await predictions.add(
+        {"last_update": datetime.datetime.now(), "status": "RECEIVED", "feedback": "PENDING"}
+    )
+    try:
+        img_bytes = await image.read()
+        raw_img = np.asarray(bytearray(img_bytes), dtype="uint8")
+        raw_img = cv2.imdecode(raw_img, cv2.IMREAD_COLOR)
+
+        result = model.predict(source=raw_img, device="cpu")
+        cv2.imwrite("result.png", result[0].plot())
+        if return_type == "json":
+            names = result[0].names
+            classes = result[0].boxes.cls
+            confs = result[0].boxes.conf
+            results = {}
+            if classes is not None:
+                for i in range(len(classes)):
+                    label = names[int(classes[i])]
+                    if label not in results:
+                        results[label] = [float(confs[i])]
+                    else:
+                        results[label].append(float(confs[i]))
+            await prediction_ref.update({"status": "OK"})
+            return JSONResponse(content=results, headers={"doc_id": prediction_ref.id})
+        elif return_type == "img":
+            result_img = cv2.imencode(".png", result[0].plot())
+            await prediction_ref.update({"status": "OK"})
+            return Response(
+                content=result_img[1].tobytes(), media_type="image/png", headers={"doc_id": prediction_ref.id}
+            )
+    except Exception:
+        await prediction_ref.update({"status": "ERROR"})
+        return JSONResponse(status_code=500, content={"message": "Erro desconhecido"})
     else:
+        await prediction_ref.update({"status": "ERROR"})
         return JSONResponse(
             status_code=400,
             content={"message": "Tipo de retorno não suportado"},
