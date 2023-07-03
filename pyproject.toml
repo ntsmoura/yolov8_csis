@@ -11,6 +11,8 @@ numpy = "*"
 fastapi = "*"
 uvicorn = "*"
 asyncio = "*"
+firebase-admin = "*"
+dynaconf = "*"
 
 [tool.poetry.dev-dependencies]
 ultralytics = "*"

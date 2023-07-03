@@ -1,16 +1,34 @@
+from pathlib import Path
 from typing import Annotated
 
 import numpy as np
 import uvicorn
+from dynaconf import Dynaconf
 
 from fastapi import FastAPI, Form, UploadFile, Response
 from starlette.responses import JSONResponse
 from ultralytics import YOLO
 import cv2
 
+import firebase_admin
+from firebase_admin import credentials, firestore_async
+from google.cloud import firestore
+
 app = FastAPI()
 
+settings = Dynaconf(
+    settings_files=[".settings.local.toml"],
+    root_path=Path(__file__).parent,
+    merge_enabled=True,
+)
+
 model = YOLO("models/best_public_safety_30.pt")
+
+cred = credentials.Certificate(settings.CRED.json_name)
+
+firebase_admin.initialize_app(cred)
+
+db = firestore_async.client()
 
 
 @app.get("/health_check")
