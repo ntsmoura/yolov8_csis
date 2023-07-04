@@ -10,7 +10,7 @@ Clone o repositório e mude para raiz dele.
 $ cp .settings.toml .settings.local.toml
 
 ```
-Coloque o arquivo json com sua chave privada na mesma pasta do repositório, e insira o nome deste na variávle de ambiente json_name em "CRED".
+Coloque o arquivo json com sua chave privada na mesma pasta do repositório, e insira o nome deste na variável de ambiente "json_name" em "CRED".
 
 Build a imagem:
 
