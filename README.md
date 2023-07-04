@@ -1,8 +1,9 @@
-# yolov8_csis
-
+# Projeto de Tópicos em Bancos de Dados ICC007
 ## :boom: Como rodar
 
-Certifique-se de possuir o docker na sua máquina e uma base de dados firestore (gere uma chave privada para esta base). Clone o repositório e mude para raiz dele.
+Certifique-se de possuir o docker na sua máquina e uma base de dados firestore (gere uma chave privada para esta base). 
+
+Clone o repositório e mude para raiz dele.
 
 ```sh
 # Copie o .settings.toml
@@ -26,4 +27,5 @@ $ docker run -p 7100:7100 -it yolov8_csis
 ```
 
 Para acessar as docs do Swagger basta abrir http://localhost:7100/docs# no navegador.
+
 Utilize alguma aplicação de requests e faça os devidos requests para o endereço base http://localhost:7100.
