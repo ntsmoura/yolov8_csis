@@ -1,4 +1,4 @@
-# Projeto de Tópicos em Bancos de Dados ICC007
+# Projeto de Tópicos em Bancos de Dados IC007
 ## :boom: Como rodar
 
 Certifique-se de possuir o docker na sua máquina e uma base de dados firestore (gere uma chave privada para esta base). 
