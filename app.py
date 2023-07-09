@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -36,10 +35,6 @@ db = firestore_async.client()
 
 predictions = db.collection("predictions")
 
-if not os.path.exists("./received_images"):
-    os.makedirs("./received_images")
-
-
 @app.get("/health_check")
 async def health_check():
     result = model.predict(source="health_check_img.jpg", device="cpu")
@@ -51,19 +46,29 @@ async def health_check():
 @app.get("/metrics")
 async def metrics():
     correct_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "CORRECT")).count().get())[0][0].value
-    wrong_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "WRONG")).count().get())[0][0].value
+    box_error_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "BOX_ERROR")).count().get())[0][
+        0
+    ].value
+    class_error_preds = (await predictions.where(filter=FieldFilter("feedback", "==", "CLASS_ERROR")).count().get())[0][
+        0
+    ].value
+    class_box_error_preds = (
+        await predictions.where(filter=FieldFilter("feedback", "==", "CLASS_BOX_ERROR")).count().get()
+    )[0][0].value
     pending_feedbacks = (await predictions.where(filter=FieldFilter("feedback", "==", "PENDING")).count().get())[0][
         0
     ].value
     division = None
-    if correct_preds or wrong_preds:
-        division = correct_preds / (correct_preds + wrong_preds)
+    if correct_preds or box_error_preds or class_error_preds or class_box_error_preds:
+        division = correct_preds / (correct_preds + box_error_preds + class_box_error_preds + class_error_preds)
 
     return JSONResponse(
         status_code=200,
         content={
             "predicoes_corretas": correct_preds,
-            "predicoes_erradas": wrong_preds,
+            "predicoes_com_bbox_erradas": box_error_preds,
+            "predicoes_com_classe_erradas": class_error_preds,
+            "predicoes_com_classe_e_bbox_erradas": class_box_error_preds,
             "predicos_sem_feedback": pending_feedbacks,
             "razao": division,
         },
@@ -80,10 +85,13 @@ async def report(status: str, predict_id: str):
         )
     match status:
         case "correct":
-            os.remove(f"./received_images/{predict_id}.png")
             await pred_ref.update({"feedback": "CORRECT", "last_update": datetime.datetime.now()})
-        case "wrong":
-            await pred_ref.update({"feedback": "WRONG", "last_update": datetime.datetime.now()})
+        case "class_error":
+            await pred_ref.update({"feedback": "CLASS_ERROR", "last_update": datetime.datetime.now()})
+        case "box_error":
+            await pred_ref.update({"feedback": "BOX_ERROR", "last_update": datetime.datetime.now()})
+        case "class_box_error":
+            await pred_ref.update({"feedback": "CLASS_BOX_ERROR", "last_update": datetime.datetime.now()})
         case _:
             return JSONResponse(
                 status_code=400,
@@ -102,21 +110,21 @@ async def predict(image: Annotated[UploadFile, Form()], return_type: str):
         img_bytes = await image.read()
         raw_img = np.asarray(bytearray(img_bytes), dtype="uint8")
         raw_img = cv2.imdecode(raw_img, cv2.IMREAD_COLOR)
-        cv2.imwrite(f"./received_images/{prediction_ref.id}.png", raw_img)
 
         result = model.predict(source=raw_img, device="cpu")
         if return_type == "json":
             names = result[0].names
             classes = result[0].boxes.cls
             confs = result[0].boxes.conf
+            coords = result[0].boxes.xywh
             results = {}
             if classes is not None:
                 for i in range(len(classes)):
                     label = names[int(classes[i])]
                     if label not in results:
-                        results[label] = [float(confs[i])]
+                        results[label] = [{"conf": float(confs[i]), "pos": coords[i].tolist()}]
                     else:
-                        results[label].append(float(confs[i]))
+                        results[label].append({"conf": float(confs[i]), "pos": coords[i].tolist()})
             await prediction_ref.update({"status": "OK"})
             return JSONResponse(content=results, headers={"doc_id": prediction_ref.id})
         elif return_type == "img":
